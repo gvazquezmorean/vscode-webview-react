@@ -64,6 +64,9 @@ class ReactPanel {
 					return;
 			}
 		}, null, this._disposables);
+
+		// Set an event listener to listen for messages passed from the webview context
+		this._setWebviewMessageListener(this._panel.webview);
 	}
 
 	public doRefactor() {
@@ -119,6 +122,46 @@ class ReactPanel {
 			</body>
 			</html>`;
 	}
+
+
+  /**
+   * Sets up an event listener to listen for messages passed from the webview context and
+   * executes code based on the message that is recieved.
+   *
+   * @param webview A reference to the extension webview
+   * @param context A reference to the extension context
+   */
+  private _setWebviewMessageListener(webview: vscode.Webview) {
+    webview.onDidReceiveMessage(
+      (message: any) => {
+        const command = message.command;
+        const text = message.text;
+
+        switch (command) {
+         case "getCVE":
+			console.log("fetching " + text);
+            const url = 'http://localhost:8070';
+            fetch(`${url}/api/v2/vulnerabilities/${text}`)
+              .then(value => value.json())
+              .then(data => {
+                webview.postMessage({
+                  command: 'sendCVE',
+                  cve: data
+                });
+              })
+              .catch(reason => {
+                webview.postMessage({
+                  command: 'sendCVE',
+                  cve: reason
+                });
+              });
+            break;
+        }
+      },
+      undefined,
+      this._disposables
+    );
+  }
 }
 
 function getNonce() {
